@@ -1,14 +1,20 @@
 import os
-import logging
 from dotenv import load_dotenv
 from pathlib import Path
-from database.mongodb import MongoDB
-from collection.collector import DataCollector
-from indicators.manager import IndicatorManager
-from utils.logging import setup_logging
 
-# Load environment variables
+# Load environment variables before other imports
+print("正在載入環境變數...")
 load_dotenv()
+
+# Check if environment variables are loaded
+pythonpath = os.getenv('PYTHONPATH')
+print(f"PYTHONPATH = {pythonpath}")
+
+# Now we can import our modules
+from src.database.mongodb import MongoDB
+from src.collection.collector import DataCollector
+from src.indicators.manager import IndicatorManager
+from src.utils.logging import setup_logging
 
 # Setup logging
 logger = setup_logging(__name__)
@@ -57,7 +63,7 @@ async def cleanup():
     except Exception as e:
         logger.error(f"Cleanup error: {str(e)}")
 
-async def collect_and_analyze_data():
+async def collect():
     """Collect market data and calculate indicators."""
     global collector, indicator_manager
     
@@ -97,14 +103,21 @@ async def collect_and_analyze_data():
     except Exception as e:
         logger.error(f"Data collection and analysis error: {str(e)}")
 
-async def main():
-    """Main execution function."""
-    try:
-        await initialize()
-        await collect_and_analyze_data()
-    finally:
-        await cleanup()
-
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main()) 
+    import sys
+    
+    if len(sys.argv) > 1:
+        function_name = sys.argv[1]
+        if function_name == "collect":
+            asyncio.run(initialize())
+            asyncio.run(collect())
+            asyncio.run(cleanup())
+        else:
+            print(f"Unknown function: {function_name}")
+            print("Available functions: collect, initialize")
+            sys.exit(1)
+    else:
+        print("Please specify a function to run")
+        print("Available functions: collect, initialize")
+        sys.exit(1) 
