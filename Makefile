@@ -23,6 +23,16 @@ collect:
 	@echo "$(BLUE)開始執行資料收集...$(NC)"
 	$(PYTHON) -m $(SRC_DIR).main collect
 
+.PHONY: analyze-spot
+analyze-spot:
+	@echo "$(BLUE)開始分析現貨市場...$(NC)"
+	$(PYTHON) -m $(SRC_DIR).analyze_spot
+
+.PHONY: analyze-swap
+analyze-swap:
+	@echo "$(BLUE)開始分析合約市場...$(NC)"
+	$(PYTHON) -m $(SRC_DIR).analyze_swap
+
 # ====== 安裝依賴 ====== #
 .PHONY: install
 install:

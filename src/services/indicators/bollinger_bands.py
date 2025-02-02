@@ -16,21 +16,24 @@ class BollingerBands(Indicator):
         Returns:
             DataFrame with additional 'bb_middle', 'bb_upper', and 'bb_lower' columns
         """
+        # Create a copy of the DataFrame
+        result_df = df.copy()
+        
         # Calculate middle band (SMA)
-        df['bb_middle'] = df['close'].rolling(window=self.period).mean()
+        result_df.loc[:, 'bb_middle'] = result_df['close'].rolling(window=self.period).mean()
         
         # Calculate standard deviation
-        rolling_std = df['close'].rolling(window=self.period).std()
+        rolling_std = result_df['close'].rolling(window=self.period).std()
         
         # Calculate upper and lower bands
-        df['bb_upper'] = df['bb_middle'] + (rolling_std * self.num_std)
-        df['bb_lower'] = df['bb_middle'] - (rolling_std * self.num_std)
+        result_df.loc[:, 'bb_upper'] = result_df['bb_middle'] + (rolling_std * self.num_std)
+        result_df.loc[:, 'bb_lower'] = result_df['bb_middle'] - (rolling_std * self.num_std)
         
         # Calculate bandwidth and %B (optional but useful)
-        df['bb_bandwidth'] = (df['bb_upper'] - df['bb_lower']) / df['bb_middle']
-        df['bb_percent_b'] = (df['close'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
+        result_df.loc[:, 'bb_bandwidth'] = (result_df['bb_upper'] - result_df['bb_lower']) / result_df['bb_middle']
+        result_df.loc[:, 'bb_percent_b'] = (result_df['close'] - result_df['bb_lower']) / (result_df['bb_upper'] - result_df['bb_lower'])
         
-        return df
+        return result_df
     
     def get_name(self) -> str:
         return f"BB_{self.period}_{self.num_std}" 

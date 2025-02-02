@@ -37,6 +37,14 @@ class FileStore(MarketStore, MarketCapStore):
             return [MarketModel(**market_dict) for market_dict in market_dicts]
         except FileNotFoundError:
             return []
+        
+    def find_all_spot(self) -> List[MarketModel]:
+        markets = self.find_all()
+        return [market for market in markets if market.type == MarketModel.MarketType.SPOT]
+    
+    def find_all_swap(self) -> List[MarketModel]:
+        markets = self.find_all()
+        return [market for market in markets if market.type == MarketModel.MarketType.SWAP]
     
     def delete_all(self) -> None:
         with open(self.market_file_path, 'w') as f:

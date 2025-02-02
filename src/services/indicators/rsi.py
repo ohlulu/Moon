@@ -15,8 +15,11 @@ class RSI(Indicator):
         Returns:
             DataFrame with additional 'rsi' column
         """
+        # Create a copy of the DataFrame
+        result_df = df.copy()
+        
         # Calculate price changes
-        delta = df['close'].diff()
+        delta = result_df['close'].diff()
         
         # Create gain (up) and loss (down) series
         gain = (delta.where(delta > 0, 0))
@@ -28,9 +31,9 @@ class RSI(Indicator):
         
         # Calculate RS and RSI
         rs = avg_gain / avg_loss
-        df['rsi'] = 100 - (100 / (1 + rs))
+        result_df.loc[:, 'rsi'] = 100 - (100 / (1 + rs))
         
-        return df
+        return result_df
     
     def get_name(self) -> str:
         return f"RSI_{self.period}" 

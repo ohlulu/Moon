@@ -16,3 +16,4 @@ passlib>=1.7.4
 bcrypt>=4.1.2
 pydantic>=2.6.0
 colorlog>=6.8.2 
+tqdm>=4.65.0

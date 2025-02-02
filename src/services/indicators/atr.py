@@ -15,18 +15,21 @@ class ATR(Indicator):
         Returns:
             DataFrame with additional 'atr' column
         """
+        # Create a copy of the DataFrame
+        result_df = df.copy()
+        
         # Calculate True Range
-        high_low = df['high'] - df['low']
-        high_close = np.abs(df['high'] - df['close'].shift())
-        low_close = np.abs(df['low'] - df['close'].shift())
+        high_low = result_df['high'] - result_df['low']
+        high_close = np.abs(result_df['high'] - result_df['close'].shift())
+        low_close = np.abs(result_df['low'] - result_df['close'].shift())
         
         ranges = pd.concat([high_low, high_close, low_close], axis=1)
         true_range = ranges.max(axis=1)
         
         # Calculate ATR
-        df['atr'] = true_range.rolling(window=self.period).mean()
+        result_df.loc[:, 'atr'] = true_range.rolling(window=self.period).mean()
         
-        return df
+        return result_df
     
     def get_name(self) -> str:
         return f"ATR_{self.period}" 

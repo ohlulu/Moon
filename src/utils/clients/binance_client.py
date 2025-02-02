@@ -135,12 +135,12 @@ class BinanceClient:
                 - MarketType.SWAP: 永續合約
         
         Returns:
-            List[MarketModel]: 市場資訊列表
+            List[MarketModel]: 市場資訊列表，已去除重複項
         """
         if isinstance(market_types, MarketType):
             market_types = [market_types]
             
-        all_markets = []
+        all_markets = {}  # 使用字典來儲存市場資料，以 symbol 為 key
         
         for market_type in market_types:
             try:
@@ -151,7 +151,7 @@ class BinanceClient:
                 
                 for symbol, market in markets.items():
                     # 跳過穩定幣交易對
-                    if market['base'] in self.STABLECOINS or not market['quote'] in self.STABLECOINS:
+                    if market['base'] in self.STABLECOINS or not market['quote'] in 'USDT':
                         continue
                     
                     # 根據市場類型過濾
@@ -166,7 +166,8 @@ class BinanceClient:
                     try:
                         market['exchange'] = 'binance'
                         market_model = MarketModel.from_ccxt(market)
-                        all_markets.append(market_model)
+                        # 使用 symbol 作為 key 來儲存，自動去除重複項
+                        all_markets[market_model.symbol] = market_model
                     except Exception as e:
                         self.logger.warning(f"無法處理市場 {symbol}: {str(e)}")
                         continue
@@ -174,8 +175,11 @@ class BinanceClient:
             except Exception as e:
                 self.logger.error(f"獲取 {market_type.value} 市場時發生錯誤: {str(e)}")
                 continue
-        self.logger.info(f"過濾後剩下 {len(all_markets)} 個市場")
-        return all_markets
+                
+        # 將字典值轉換為列表
+        unique_markets = list(all_markets.values())
+        self.logger.info(f"過濾後剩下 {len(unique_markets)} 個唯一市場")
+        return unique_markets
 
     def fetch_ohlcv(
         self,
@@ -203,12 +207,10 @@ class BinanceClient:
             # 選擇正確的交易所實例
             exchange_class = self.spot_client if market_type == MarketType.SPOT else self.swap_client
 
-            self.logger.info(f"正在獲取 {symbol} 的 OHLCV 數據，時間間隔：{timeframe.value}")
             
             # 獲取 OHLCV 數據
             ohlcv = exchange_class.fetch_ohlcv(symbol, timeframe.value, limit=limit)
             
-            self.logger.info(f"成功獲取到 {len(ohlcv)} 筆 OHLCV 數據")
             return ohlcv
 
         except ccxt.BadSymbol as e:

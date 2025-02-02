@@ -16,20 +16,23 @@ class MACD(Indicator):
         Returns:
             DataFrame with additional 'macd', 'macd_signal' and 'macd_hist' columns
         """
+        # Create a copy of the DataFrame
+        result_df = df.copy()
+        
         # Calculate the EMA
-        exp1 = df['close'].ewm(span=self.fast_period, adjust=False).mean()
-        exp2 = df['close'].ewm(span=self.slow_period, adjust=False).mean()
+        exp1 = result_df['close'].ewm(span=self.fast_period, adjust=False).mean()
+        exp2 = result_df['close'].ewm(span=self.slow_period, adjust=False).mean()
         
         # Calculate MACD line
-        df['macd'] = exp1 - exp2
+        result_df.loc[:, 'macd'] = exp1 - exp2
         
         # Calculate signal line
-        df['macd_signal'] = df['macd'].ewm(span=self.signal_period, adjust=False).mean()
+        result_df.loc[:, 'macd_signal'] = result_df['macd'].ewm(span=self.signal_period, adjust=False).mean()
         
         # Calculate histogram
-        df['macd_hist'] = df['macd'] - df['macd_signal']
+        result_df.loc[:, 'macd_hist'] = result_df['macd'] - result_df['macd_signal']
         
-        return df
+        return result_df
     
     def get_name(self) -> str:
         return f"MACD_{self.fast_period}_{self.slow_period}_{self.signal_period}" 
