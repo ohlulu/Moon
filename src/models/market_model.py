@@ -1,79 +1,101 @@
-from dataclasses import dataclass
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional, Union
 from decimal import Decimal
+import pandas as pd
+import numpy as np
+from pydantic import BaseModel, Field, field_validator
+from enum import Enum
+from datetime import datetime
 
-@dataclass
-class PrecisionModel:
-    """交易精度設定"""
-    amount: int  # 數量精度（小數點位數）
-    price: int   # 價格精度（小數點位數）
-    cost: int    # 成本精度（小數點位數）
-
-@dataclass
-class LimitModel:
-    """交易限制"""
-    amount: Dict[str, Decimal]  # 數量限制 {'min': 最小值, 'max': 最大值}
-    price: Dict[str, Decimal]   # 價格限制 {'min': 最小值, 'max': 最大值}
-    cost: Dict[str, Decimal]    # 成本限制 {'min': 最小值, 'max': 最大值}
-
-@dataclass
-class MarketModel:
-    """交易市場資料模型"""
+class MarketModel(BaseModel):
+    """交易市場數據模型"""
     
-    # 基本資訊
-    id: str                     # 市場 ID（例如：'BTCUSDT'）
-    symbol: str                 # 交易對符號（例如：'BTC/USDT'）
-    base: str                   # 基礎貨幣（例如：'BTC'）
-    quote: str                  # 報價貨幣（例如：'USDT'）
-    settle: Optional[str]       # 結算貨幣（僅用於合約）
+    class MarketType(str, Enum):
+        """市場類型枚舉"""
+        SPOT = 'spot'      # 現貨市場
+        SWAP = 'swap'      # 永續合約
+        FUTURE = 'future'  # 期貨合約
+        MARGIN = 'margin'  # 槓桿交易
+    
+    class PrecisionModel(BaseModel):
+        """交易精度設置"""
+        amount: Optional[Decimal] = Field(description="數量精度（小數位數）")
+        price: Optional[Decimal] = Field(description="價格精度（小數位數）")
+        cost: Optional[Decimal] = Field(description="成本精度（小數位數）")
+        
+        class Config:
+            frozen = True
+    
+    class LimitModel(BaseModel):
+        """交易限制"""
+        amount: Dict[str, Optional[Decimal]] = Field(description="數量限制 {'min': 最小值, 'max': 最大值}")
+        price: Dict[str, Optional[Decimal]] = Field(description="價格限制 {'min': 最小值, 'max': 最大值}")
+        cost: Dict[str, Optional[Decimal]] = Field(description="成本限制 {'min': 最小值, 'max': 最大值}")
+        
+        class Config:
+            frozen = True
+
+    # 基本信息
+    id: str = Field(description="市場ID（例如：'BTCUSDT'）")
+    symbol: str = Field(description="交易對符號（例如：'BTC/USDT'）")
+    base: str = Field(description="基礎貨幣（例如：'BTC'）")
+    quote: str = Field(description="報價貨幣（例如：'USDT'）")
+    settle: Optional[str] = Field(default=None, description="結算貨幣（僅用於合約）")
     
     # 市場類型
-    type: str                   # 市場類型（'spot' 現貨 或 'swap' 永續合約）
-    spot: bool                  # 是否為現貨市場
-    margin: bool                # 是否支援槓桿交易
-    swap: bool                  # 是否為永續合約
-    future: bool                # 是否為期貨合約
+    type: MarketType = Field(description="市場類型")
+    spot: bool = Field(description="是否為現貨市場")
+    margin: bool = Field(description="是否支持槓桿交易")
+    swap: bool = Field(description="是否為永續合約")
+    future: bool = Field(description="是否為期貨合約")
     
     # 交易狀態
-    active: bool                # 市場是否活躍
-    contract: bool              # 是否為合約市場
-    linear: Optional[bool]      # 是否為線性合約（USDT結算）
-    inverse: Optional[bool]     # 是否為反向合約（幣本位結算）
+    active: bool = Field(description="市場是否活躍")
+    contract: bool = Field(description="是否為合約市場")
+    linear: Optional[bool] = Field(default=None, description="是否為線性合約（USDT結算）")
+    inverse: Optional[bool] = Field(default=None, description="是否為反向合約（幣本位結算）")
     
-    # 合約特定資訊
-    contractSize: Optional[Decimal]     # 合約規模
-    expiry: Optional[int]               # 到期時間戳（針對交割合約）
+    # 合約特定
+    contractSize: Optional[Decimal] = Field(default=None, description="合約規模")
+    expiry: Optional[int] = Field(default=None, description="到期時間戳")
     
     # 交易規則
-    precision: PrecisionModel           # 交易精度設定
-    limits: LimitModel                  # 交易限制
+    precision: PrecisionModel = Field(description="交易精度設置")
+    limits: LimitModel = Field(description="交易限制")
     
-    # 費用相關
-    percentage: bool                    # 費用是否以百分比計算
-    taker: Decimal                      # taker 手續費率
-    maker: Decimal                      # maker 手續費率
+    # 手續費相關
+    percentage: bool = Field(description="手續費是否按百分比計算")
+    taker: Decimal = Field(description="吃單手續費率")
+    maker: Decimal = Field(description="掛單手續費率")
     
-    # 額外資訊
-    baseId: str                         # 基礎貨幣 ID
-    quoteId: str                        # 報價貨幣 ID
-    settleId: Optional[str]             # 結算貨幣 ID
+    # 額外信息
+    baseId: str = Field(description="基礎貨幣ID")
+    quoteId: str = Field(description="報價貨幣ID")
+    settleId: Optional[str] = Field(default=None, description="結算貨幣ID")
+    exchange: str = Field(description="交易所名稱")
     
-    # 交易所特定
-    exchange: str                       # 交易所名稱（例如：'binance'）
+    class Config:
+        frozen = True
+        
+    @field_validator('taker', 'maker', mode='before')
+    def convert_to_decimal(cls, v):
+        return Decimal(str(v))
     
     @classmethod
     def from_ccxt(cls, ccxt_market: Dict) -> 'MarketModel':
-        """從 CCXT 市場資料創建 MarketModel 實例"""
-        precision = PrecisionModel(
+        """Create MarketModel instance from CCXT market data"""
+        def to_decimal_or_none(value: Union[str, int, float, None]) -> Optional[Decimal]:
+            return None if value is None else Decimal(str(value))
+        
+        precision = cls.PrecisionModel(
             amount=ccxt_market['precision'].get('amount', 0),
             price=ccxt_market['precision'].get('price', 0),
             cost=ccxt_market['precision'].get('cost', 0)
         )
         
-        limits = LimitModel(
-            amount={k: Decimal(str(v)) for k, v in ccxt_market['limits']['amount'].items()},
-            price={k: Decimal(str(v)) for k, v in ccxt_market['limits']['price'].items()},
-            cost={k: Decimal(str(v)) for k, v in ccxt_market['limits']['cost'].items()}
+        limits = cls.LimitModel(
+            amount={k: to_decimal_or_none(v) for k, v in ccxt_market['limits']['amount'].items()},
+            price={k: to_decimal_or_none(v) for k, v in ccxt_market['limits']['price'].items()},
+            cost={k: to_decimal_or_none(v) for k, v in ccxt_market['limits']['cost'].items()}
         )
         
         return cls(
@@ -91,15 +113,62 @@ class MarketModel:
             contract=ccxt_market['contract'],
             linear=ccxt_market.get('linear'),
             inverse=ccxt_market.get('inverse'),
-            contractSize=Decimal(str(ccxt_market['contractSize'])) if ccxt_market.get('contractSize') else None,
+            contractSize=to_decimal_or_none(ccxt_market.get('contractSize')),
             expiry=ccxt_market.get('expiry'),
             precision=precision,
             limits=limits,
             percentage=ccxt_market['percentage'],
-            taker=Decimal(str(ccxt_market['taker'])),
-            maker=Decimal(str(ccxt_market['maker'])),
+            taker=ccxt_market['taker'],
+            maker=ccxt_market['maker'],
             baseId=ccxt_market['baseId'],
             quoteId=ccxt_market['quoteId'],
             settleId=ccxt_market.get('settleId'),
             exchange=ccxt_market['exchange']
         )
+    
+    @staticmethod
+    def to_dataframe(markets: list['MarketModel']) -> pd.DataFrame:
+        """Convert list of MarketModel to DataFrame"""
+        return pd.DataFrame([market.dict() for market in markets])
+    
+    @staticmethod
+    def to_numpy(markets: list['MarketModel']) -> np.ndarray:
+        """Convert list of MarketModel to structured numpy array"""
+        dtype = [
+            ('id', 'U20'),
+            ('symbol', 'U20'),
+            ('type', 'U10'),
+            ('taker', 'f8'),
+            ('maker', 'f8'),
+            ('active', 'bool'),
+            ('contract', 'bool')
+        ]
+        
+        data = [(
+            market.id,
+            market.symbol,
+            market.type,
+            float(market.taker),
+            float(market.maker),
+            market.active,
+            market.contract
+        ) for market in markets]
+        
+        return np.array(data, dtype=dtype)
+    
+    def get_min_amount(self) -> Optional[Decimal]:
+        """Get minimum trading amount"""
+        return self.limits.amount.get('min')
+    
+    def get_max_amount(self) -> Optional[Decimal]:
+        """Get maximum trading amount"""
+        return self.limits.amount.get('max')
+    
+    def is_tradable(self) -> bool:
+        """Check if market is tradable"""
+        return self.active and self.get_min_amount() is not None
+    
+    def calculate_fee(self, amount: Decimal, price: Decimal, side: str) -> Decimal:
+        """Calculate trading fee"""
+        fee_rate = self.taker if side == 'taker' else self.maker
+        return amount * price * fee_rate if self.percentage else fee_rate

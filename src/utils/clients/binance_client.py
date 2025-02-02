@@ -155,20 +155,29 @@ class BinanceClient:
                 self.logger.info(f"已獲取到 {len(markets)} 個原始市場")
                 
                 for symbol, market in markets.items():
-                    if market['base'] in self.STABLECOINS:
+                    # 跳過穩定幣交易對
+                    if market['base'] in self.STABLECOINS or not market['quote'] in self.STABLECOINS:
                         continue
                     
-                    market['exchange'] = 'binance'
-                    all_markets.append(MarketModel.from_ccxt(market))
+                    # 根據市場類型過濾
+                    if market_type == 'spot':
+                        # 只獲取純現貨市場，排除保證金交易
+                        if market.get('margin', False):
+                            continue
+                    else:  # swap
+                        if not market.get(market_type, True):
+                            continue
+                    
+                    try:
+                        market['exchange'] = 'binance'
+                        market_model = MarketModel.from_ccxt(market)
+                        all_markets.append(market_model)
+                    except Exception as e:
+                        self.logger.warning(f"無法處理市場 {symbol}: {str(e)}")
+                        continue
                 
             except Exception as e:
-                self.logger.error(f"Error fetching {market_type} markets: {str(e)}")
-                all_markets[market_type] = []
-                
+                self.logger.error(f"獲取 {market_type} 市場時發生錯誤: {str(e)}")
+                continue
+        self.logger.info(f"過濾後剩下 {len(all_markets)} 個市場")
         return all_markets
-
-if __name__ == '__main__':
-    client = BinanceClient()
-    data = client.fetch_markets()
-    logger = setup_logging(__name__)
-    logger.info(data[:10])

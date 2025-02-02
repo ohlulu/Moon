@@ -14,12 +14,13 @@ class MarketStoreFile(MarketStore):
         Args:
             file_path: Path to the JSON file for storage
         """
-        self.file_path = "storage/markets.json"
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.file_path = os.path.join(current_dir, "storage", "markets.json")
         
-        # Create file if it doesn't exist
+        # Create empty file if it doesn't exist
         if not os.path.exists(self.file_path):
             with open(self.file_path, 'w') as f:
-                json.dump([], f)
+                pass
     
     def save(self, markets: List[MarketModel]) -> None:
         """Save multiple markets to the JSON file
@@ -30,7 +31,7 @@ class MarketStoreFile(MarketStore):
 
         self.delete_all()
 
-        market_dicts = [market.dict() for market in markets]
+        market_dicts = [market.model_dump(mode='json') for market in markets]
         with open(self.file_path, 'w') as f:
             json.dump(market_dicts, f, indent=2)
     
