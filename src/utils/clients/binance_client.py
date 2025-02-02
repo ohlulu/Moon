@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from pprint import pprint
 from typing import Dict, List, Literal, Union
 from src.utils.logging import setup_logging
+from src.models.market_model import MarketModel
 
 MARKET_TYPE = Literal['spot', 'swap']
 
@@ -129,7 +130,7 @@ class BinanceClient:
             'enableRateLimit': True,
         }
 
-    def fetch_markets(self, market_types: Union[MARKET_TYPE, List[MARKET_TYPE]] = ['spot', 'swap']) -> List[Dict]:
+    def fetch_markets(self, market_types: Union[MARKET_TYPE, List[MARKET_TYPE]] = ['spot', 'swap']) -> List[MarketModel]:
         """獲取指定市場類型的非穩定幣交易對資訊
         
         Args:
@@ -138,7 +139,7 @@ class BinanceClient:
                 - 'swap': 永續合約
         
         Returns:
-            List[Dict]: 市場資訊列表
+            List[MarketModel]: 市場資訊列表
         """
         if isinstance(market_types, str):
             market_types = [market_types]
@@ -153,14 +154,12 @@ class BinanceClient:
                 markets = client.load_markets()
                 self.logger.info(f"已獲取到 {len(markets)} 個原始市場")
                 
-                filtered_markets = []
                 for symbol, market in markets.items():
                     if market['base'] in self.STABLECOINS:
                         continue
-                        
-                    market_without_info = market.copy()
-                    market_without_info.pop('info', None)
-                    all_markets.append(market_without_info)
+                    
+                    market['exchange'] = 'binance'
+                    all_markets.append(MarketModel.from_ccxt(market))
                 
             except Exception as e:
                 self.logger.error(f"Error fetching {market_type} markets: {str(e)}")
