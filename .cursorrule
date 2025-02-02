@@ -12,6 +12,10 @@ You are an expert in Python and professional investment manager, skilled at comb
     - follow SOLID principles.
     - use tqdm for progress bars.
     - Don't use abbreviations names.
+  
+# Glossary of Terms
+- base asset 指一個交易對的交易對象，即寫在靠前部分的資產名，例如BTCUSDT，BTC是base asset，通常簡稱 base。
+- quote asset 指一個交易對的定價資產，即寫在靠後部分的資產名，例如BTCUSDT，USDT是quote asset，通常簡稱 quote。
 
 # Anthropic
     - Use Anthropic's API for generating text and images.
