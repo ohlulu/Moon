@@ -114,7 +114,7 @@ class MarketAnalyzer:
             
         return self.BASE_CONFIDENCE_THRESHOLD
 
-    def analyze_spot(self, timeframe_data: Dict[Timeframe, pd.DataFrame], symbol: str) -> TradeSignal:
+    def analyze_spot(self, symbol: str, timeframe_data: Dict[Timeframe, pd.DataFrame]) -> TradeSignal:
         """分析現貨交易機會"""
         available_timeframes = list(timeframe_data.keys())
         if not available_timeframes:
@@ -220,9 +220,9 @@ class MarketAnalyzer:
         
         return confidence
 
-    def analyze_swap(self, timeframe_data: Dict[Timeframe, pd.DataFrame], symbol: str) -> TradeSignal:
+    def analyze_swap(self, symbol: str, timeframe_data: Dict[Timeframe, pd.DataFrame]) -> TradeSignal:
         """分析合約交易機會"""
-        signal = self.analyze_spot(timeframe_data, symbol)
+        signal = self.analyze_spot(symbol, timeframe_data)
         
         # 計算建議槓桿
         market_status = signal.market_status
@@ -458,26 +458,6 @@ class MarketAnalyzer:
         
         return reasons
 
-def analyze_market(timeframe_data: Dict[Timeframe, pd.DataFrame], symbol: str, trade_type: str = 'spot') -> TradeSignal:
-    """市場分析入口函數
-    
-    Args:
-        timeframe_data: 不同時間週期的 OHLCV 數據，格式為 {Timeframe: DataFrame}
-        symbol: 交易對名稱
-        trade_type: 交易類型，'spot' 或 'swap'
-        
-    Returns:
-        TradeSignal 物件，包含完整的分析結果
-    """
-    analyzer = MarketAnalyzer()
-    
-    if trade_type == 'spot':
-        return analyzer.analyze_spot(timeframe_data, symbol)
-    elif trade_type == 'swap':
-        return analyzer.analyze_swap(timeframe_data, symbol)
-    else:
-        raise ValueError(f"不支持的交易類型：{trade_type}")
-
 # 使用示例：
 if __name__ == "__main__":
     # 假設我們有不同時間週期的數據
@@ -485,9 +465,11 @@ if __name__ == "__main__":
         Timeframe.HOUR_6: pd.DataFrame(),  # 6小時數據
         Timeframe.DAY_1: pd.DataFrame(),   # 日線數據
     }
+
+    analyzer = MarketAnalyzer()
     
     # 分析現貨交易機會
-    spot_signal = analyze_market(timeframe_data, "BTC/USDT", "spot")
+    spot_signal = analyzer.analyze_spot("BTC/USDT", timeframe_data)
     print("現貨市場分析結果：")
     print(f"交易對：{spot_signal.symbol}")
     print(f"綜合信心指數：{spot_signal.confidence:.2%}")
@@ -500,7 +482,7 @@ if __name__ == "__main__":
         print(f"{key}: {value:.2%}")
     
     # 分析合約交易機會
-    swap_signal = analyze_market(timeframe_data, "BTC/USDT", "swap")
+    swap_signal = analyzer.analyze_swap("BTC/USDT", timeframe_data)
     print("\n合約市場分析結果：")
     print(f"交易對：{swap_signal.symbol}")
     print(f"綜合信心指數：{swap_signal.confidence:.2%}")
