@@ -19,15 +19,19 @@ class MACD(Indicator):
         # Create a copy of the DataFrame
         result_df = df.copy()
         
-        # Calculate the EMA
-        exp1 = result_df['close'].ewm(span=self.fast_period, adjust=False).mean()
-        exp2 = result_df['close'].ewm(span=self.slow_period, adjust=False).mean()
+        # Calculate the EMA with min_periods=1 to avoid initial NA values
+        exp1 = result_df['close'].ewm(span=self.fast_period, min_periods=1, adjust=False).mean()
+        exp2 = result_df['close'].ewm(span=self.slow_period, min_periods=1, adjust=False).mean()
         
         # Calculate MACD line
         result_df.loc[:, 'macd'] = exp1 - exp2
         
         # Calculate signal line
-        result_df.loc[:, 'macd_signal'] = result_df['macd'].ewm(span=self.signal_period, adjust=False).mean()
+        result_df.loc[:, 'macd_signal'] = result_df['macd'].ewm(
+            span=self.signal_period, 
+            min_periods=1, 
+            adjust=False
+        ).mean()
         
         # Calculate histogram
         result_df.loc[:, 'macd_hist'] = result_df['macd'] - result_df['macd_signal']

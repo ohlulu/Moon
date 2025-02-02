@@ -20,14 +20,15 @@ class ATR(Indicator):
         
         # Calculate True Range
         high_low = result_df['high'] - result_df['low']
-        high_close = np.abs(result_df['high'] - result_df['close'].shift())
-        low_close = np.abs(result_df['low'] - result_df['close'].shift())
+        high_close = np.abs(result_df['high'] - result_df['close'].shift().fillna(result_df['high']))
+        low_close = np.abs(result_df['low'] - result_df['close'].shift().fillna(result_df['low']))
         
+        # Calculate true range using vectorized operations
         ranges = pd.concat([high_low, high_close, low_close], axis=1)
         true_range = ranges.max(axis=1)
         
-        # Calculate ATR
-        result_df.loc[:, 'atr'] = true_range.rolling(window=self.period).mean()
+        # Calculate ATR using EMA to avoid NA values
+        result_df.loc[:, 'atr'] = true_range.ewm(span=self.period, min_periods=1).mean()
         
         return result_df
     

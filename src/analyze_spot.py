@@ -68,7 +68,7 @@ def analyze_spot() -> List[AnalysisResult]:
                     raise ValueError(f"數據中存在缺失值")
                 
                 # 確保至少有足夠的數據點進行分析
-                if len(df) < 30:  # 通常技術指標需要至少 30 個數據點
+                if len(df) < 100:  # 通常技術指標需要至少 30 個數據點
                     raise ValueError(f"數據點不足: {len(df)}")
         except Exception as e:
             continue

@@ -42,8 +42,18 @@ class MarketAnalyzer(ABC):
     
     def _calculate_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """Calculate all indicators"""
+        # 計算所有指標
         for indicator in self.indicators:
             df = indicator.calculate(df)
+            
+        # 移除初始化期間的數據點（前 30 個），這些數據點可能包含 NA 值
+        df = df.iloc[30:]
+        
+        # 確保沒有 NA 值
+        if df.isnull().values.any():
+            missing_columns = df.columns[df.isnull().any()].tolist()
+            raise ValueError(f"數據中存在 NA 值，影響的列：{missing_columns}")
+            
         return df
     
     def _calculate_confidence(self, df_6h: pd.DataFrame, df_1d: pd.DataFrame) -> float:
@@ -93,6 +103,8 @@ class SpotAnalyzerV1(MarketAnalyzer):
         for indicator in required_indicators:
             if indicator not in latest.index:
                 raise ValueError(f"缺少必要的指標: {indicator}")
+            if pd.isna(latest[indicator]):
+                raise ValueError(f"指標 {indicator} 的值為 NA")
         
         confidence = 0.0
         
