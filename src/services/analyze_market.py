@@ -407,43 +407,6 @@ class MarketAnalyzer:
         df = self.volume_profile.calculate(df)
         return df
 
-    def _calculate_percentile(self, series: pd.Series, window: int) -> float:
-        """計算數值在近期數據中的百分位數
-        
-        Args:
-            series: 數據序列
-            window: 回顧窗口大小
-            
-        Returns:
-            百分位數（0-1）
-        """
-        recent_values = series.tail(window)
-        current_value = series.iloc[-1]
-        return (recent_values <= current_value).mean()
-        
-    def _calculate_volume_stability(self, df: pd.DataFrame) -> float:
-        """計算成交量的穩定性
-        
-        Args:
-            df: DataFrame 包含成交量數據
-            
-        Returns:
-            穩定性指數（0-1）
-        """
-        volume = df['volume'].tail(20)
-        normalized_std = volume.std() / volume.mean()
-        return 1 / (1 + normalized_std)  # 使用 sigmoid-like 轉換
-
-    def _get_indicator_values(self, df: pd.DataFrame) -> Dict:
-        """獲取指標值"""
-        latest = df.iloc[-1]
-        return {
-            'rsi': latest['rsi'],
-            'macd': latest['macd'],
-            'bb_percent_b': (latest['close'] - latest['bb_lower']) / (latest['bb_upper'] - latest['bb_lower']),
-            'volume_profile_poc': latest['poc_price']
-        }
-
     def _generate_signal_reasons(self, structure: MarketStructure) -> List[str]:
         """生成信號原因"""
         reasons = []
