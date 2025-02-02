@@ -18,7 +18,7 @@ def setup_logging(name: str) -> logging.Logger:
         datefmt='%H:%M:%S',
         log_colors={
             'DEBUG':    'cyan',
-            'INFO':     'green',
+            'INFO':     'white',
             'WARNING':  'yellow',
             'ERROR':    'red',
             'CRITICAL': 'red,bg_white',

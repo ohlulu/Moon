@@ -3,6 +3,7 @@ import ccxt
 from dotenv import load_dotenv
 from pprint import pprint
 from typing import Dict, List, Literal, Union
+from src.utils.logging import setup_logging
 
 MARKET_TYPE = Literal['spot', 'swap']
 
@@ -101,6 +102,7 @@ class BinanceClient:
 
     def __init__(self):
         load_dotenv()
+        self.logger = setup_logging(__name__)
 
     def _get_auth_config(self) -> Dict:
         """Return authentication configuration for Binance API
@@ -127,7 +129,7 @@ class BinanceClient:
             'enableRateLimit': True,
         }
 
-    def fetch_markets(self, market_types: Union[MARKET_TYPE, List[MARKET_TYPE]] = ['spot', 'swap']) -> Dict[str, List[Dict]]:
+    def fetch_markets(self, market_types: Union[MARKET_TYPE, List[MARKET_TYPE]] = ['spot', 'swap']) -> List[Dict]:
         """獲取指定市場類型的非穩定幣交易對資訊
         
         Args:
@@ -136,20 +138,20 @@ class BinanceClient:
                 - 'swap': 永續合約
         
         Returns:
-            Dict[str, List[Dict]]: 按市場類型分類的市場資訊字典
+            List[Dict]: 市場資訊列表
         """
         if isinstance(market_types, str):
             market_types = [market_types]
             
-        result = {}
+        all_markets = []
         
         for market_type in market_types:
             try:
                 exchange_class = ccxt.binance if market_type == 'spot' else ccxt.binanceusdm
                 client = exchange_class(self._get_auth_config())
-                print(f"\n正在獲取 {market_type} 市場資料...")
+                self.logger.info(f"正在獲取 {market_type} 市場資料...")
                 markets = client.load_markets()
-                print(f"已獲取到 {len(markets)} 個原始市場")
+                self.logger.info(f"已獲取到 {len(markets)} 個原始市場")
                 
                 filtered_markets = []
                 for symbol, market in markets.items():
@@ -158,18 +160,16 @@ class BinanceClient:
                         
                     market_without_info = market.copy()
                     market_without_info.pop('info', None)
-                    filtered_markets.append(market_without_info)
-                
-                print(f"過濾後剩餘 {len(filtered_markets)} 個市場")
-                result[market_type] = filtered_markets
+                    all_markets.append(market_without_info)
                 
             except Exception as e:
-                print(f"Error fetching {market_type} markets: {str(e)}")
-                result[market_type] = []
+                self.logger.error(f"Error fetching {market_type} markets: {str(e)}")
+                all_markets[market_type] = []
                 
-        return result
+        return all_markets
 
 if __name__ == '__main__':
     client = BinanceClient()
     data = client.fetch_markets()
-    print(data['swap'][:10])
+    logger = setup_logging(__name__)
+    logger.info(data[:10])
