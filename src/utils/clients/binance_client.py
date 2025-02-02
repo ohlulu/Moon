@@ -2,64 +2,180 @@ import os
 import ccxt
 from dotenv import load_dotenv
 from pprint import pprint
-from typing import Dict, List
+from typing import Dict, List, Literal, Union
+
+MARKET_TYPE = Literal['spot', 'swap']
 
 class BinanceClient:
     # 定義穩定幣列表
-    STABLECOINS = {'USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'UST', 'USDP', 'USDD'}
+    STABLECOINS = {
+        # USD Stablecoins - Major
+        'USDT',     # Tether
+        'USDC',     # USD Coin
+        'BUSD',     # Binance USD
+        'DAI',      # Dai
+        'TUSD',     # TrueUSD
+        'USDP',     # Pax Dollar (formerly PAX)
+        'USDD',     # USDD
+        'UST',      # TerraUSD Classic
+        
+        # USD Stablecoins - Others
+        'GUSD',     # Gemini Dollar
+        'LUSD',     # Liquity USD
+        'FRAX',     # Frax
+        'SUSD',     # Synthetix USD
+        'CUSD',     # Celo Dollar
+        'USDN',     # Neutrino USD
+        'MUSD',     # mStable USD
+        'HUSD',     # HUSD
+        'OUSD',     # Origin Dollar
+        'USDX',     # USDX
+        'USDK',     # USDK
+        'DOLA',     # Dola USD
+        'YUSD',     # YUSD Stablecoin
+        'ZUSD',     # ZUSD
+        'USDH',     # USDH
+        'USDB',     # USD Balance
+        'USDS',     # Stably USD
+        'USDJ',     # JUST Stablecoin
+        'USDL',     # USDL
+        'RSV',      # Reserve
+        'USDEX',    # USDEX
+        'USDF',     # USD Freedom
+        'DUSD',     # Decentralized USD
+        
+        # EUR Stablecoins
+        'EURS',     # STASIS EURO
+        'EURT',     # Tether EURt
+        'JEUR',     # Jarvis Synthetic Euro
+        'SEUR',     # Stasis SEuro
+        'CEUR',     # Celo Euro
+        'EUROC',    # Euro Coin
+        
+        # GBP Stablecoins
+        'GBPT',     # Tether GBPt
+        'GBPP',     # Poundtoken
+        'TGBP',     # TrueGBP
+        
+        # Other Fiat Stablecoins
+        'CADC',     # CAD Coin
+        'XIDR',     # XIDR (Indonesian Rupiah)
+        'BIDR',     # BIDR (Binance IDR)
+        'AUDT',     # AUD Tether
+        'CNHT',     # CNH Tether
+        'XSGD',     # XSGD (Singapore Dollar)
+        'NZDS',     # NZD Stablecoin
+        'TRYB',     # BiLira
+        'BRZC',     # Brazilian Digital Token
+        'JPYC',     # JPY Coin
+        'THBT',     # Thai Baht Digital
+        'MXNT',     # Mexican Peso Tether
+        
+        # Commodity-Backed Stablecoins
+        'XAUT',     # Tether Gold
+        'PAXG',     # PAX Gold
+        'DGLD',     # Digital Gold
+        
+        # Algorithmic Stablecoins
+        'AMPL',     # Ampleforth
+        'BAC',      # Basis Cash
+        'FEI',      # Fei USD
+        'FLOAT',    # Float Protocol
+        'RAI',      # Rai Reflex Index
+        'USDV',     # USD Velocity
+        'VOLT',     # Voltage Protocol
+        
+        # Yield-Bearing Stablecoins
+        'ALUSD',    # Alchemix USD
+        'YUSD',     # yUSD
+        'SUSD',     # Synth sUSD
+        'MUSD',     # mStable USD
+        'OUSD',     # Origin USD
+        
+        # Deprecated but might still exist in some pairs
+        'SAI',      # Single Collateral DAI (old)
+        'USDT_OLD', # Old USDT contract
+        'sUSD',     # Synthetix USD (old format)
+        'BUSD_OLD'  # Old BUSD contract
+    }
 
     def __init__(self):
         load_dotenv()
-        
-        self.client = ccxt.binance({
-            'apiKey': os.getenv('BINANCE_API_KEY'),
-            'secret': os.getenv('BINANCE_SECRET_KEY'),
-            'enableRateLimit': True,
-        })
-    
-    def get_non_stablecoin_markets(self) -> List[Dict]:
-        """獲取所有非穩定幣交易對的市場資訊，移除 info 字段
+
+    def _get_auth_config(self) -> Dict:
+        """Return authentication configuration for Binance API
         
         Returns:
-            List[Dict]: 市場資訊列表，包含除了 info 以外的所有原始字段
+            Dict: Authentication configuration
+            
+        Raises:
+            ValueError: If API credentials are not properly configured
         """
-        # 獲取所有市場資訊
-        markets = self.client.load_markets()
+        api_key = os.getenv('BINANCE_API_KEY')
+        secret_key = os.getenv('BINANCE_SECRET_KEY')
         
-        # 過濾並整理市場資訊
-        filtered_markets = []
-        for symbol, market in markets.items():
-            # 跳過計價貨幣是穩定幣的交易對
-            if market['quote'] in self.STABLECOINS:
-                continue
+        if not api_key or not secret_key:
+            raise ValueError(
+                "Missing Binance API credentials. "
+                "Please ensure BINANCE_API_KEY and BINANCE_SECRET_KEY "
+                "are set in your environment variables."
+            )
+            
+        return {
+            'apiKey': api_key,
+            'secret': secret_key,
+            'enableRateLimit': True,
+        }
+
+    def _filter_market(self, market: Dict) -> bool:
+        """Check if market should be included in results
+        
+        Args:
+            market: Market information dictionary
+            
+        Returns:
+            bool: True if market should be included
+        """
+        return market['base'] not in self.STABLECOINS
+
+    def fetch_markets(self, market_types: Union[MARKET_TYPE, List[MARKET_TYPE]] = ['spot', 'swap']) -> Dict[str, List[Dict]]:
+        """獲取指定市場類型的非穩定幣交易對資訊
+        
+        Args:
+            market_types: 可以是單個市場類型字符串或市場類型列表
+                - 'spot': 現貨市場
+                - 'swap': 永續合約
+        
+        Returns:
+            Dict[str, List[Dict]]: 按市場類型分類的市場資訊字典
+        """
+        if isinstance(market_types, str):
+            market_types = [market_types]
+            
+        result = {}
+        
+        for market_type in market_types:
+            try:
+                exchange_class = ccxt.binance if market_type == 'spot' else ccxt.binanceusdm
+                client = exchange_class(self._get_auth_config())
+                print(f"\n正在獲取 {market_type} 市場資料...")
+                markets = client.load_markets()
+                print(f"已獲取到 {len(markets)} 個原始市場")
                 
-            # 複製原始市場資訊，但移除 info 字段
-            market_without_info = market.copy()
-            market_without_info.pop('info', None)
-            filtered_markets.append(market_without_info)
-        
-        return filtered_markets
-
-    def print_market_structure(self, market_info: Dict):
-        """打印市場資訊的所有欄位"""
-        print(f"\n{market_info['symbol']} 資訊:")
-        print("-" * 30)
-        for key, value in market_info.items():
-            if isinstance(value, dict):
-                print(f"\n{key}:")
-                for sub_key, sub_value in value.items():
-                    print(f"  {sub_key}: {sub_value}")
-            else:
-                print(f"{key}: {value}")
-
-if __name__ == '__main__':
-    # 測試客戶端
-    client = BinanceClient()
-    markets = client.get_non_stablecoin_markets()
-    
-    print(f"\n找到 {len(markets)} 個非穩定幣交易對")
-    
-    # 打印前 5 個交易對的資訊
-    for market in markets[:5]:
-        client.print_market_structure(market)
-        print("\n" + "=" * 50)
+                filtered_markets = []
+                for symbol, market in markets.items():
+                    if not self._filter_market(market):
+                        continue
+                        
+                    market_without_info = market.copy()
+                    market_without_info.pop('info', None)
+                    filtered_markets.append(market_without_info)
+                
+                print(f"過濾後剩餘 {len(filtered_markets)} 個市場")
+                result[market_type] = filtered_markets
+                
+            except Exception as e:
+                print(f"Error fetching {market_type} markets: {str(e)}")
+                result[market_type] = []
+                
+        return result
