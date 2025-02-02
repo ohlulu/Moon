@@ -16,8 +16,8 @@ class MarketDataCollector:
     def collect_and_store(self) -> None:
         """Collect market data from Binance and store it in the file"""
         # 從 Binance 獲取市場資料並儲存到檔案
-        # market_models = self.binance_client.fetch_markets()
-        # self.market_store.save(market_models)
+        market_models = self.binance_client.fetch_markets()
+        self.market_store.save(market_models)
 
         # 從 CoinMarketCap 獲取市場資料並儲存到檔案
         market_cap_models = self.coin_market_cap_client.fetch_market_caps()
