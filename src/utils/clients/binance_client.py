@@ -2,11 +2,25 @@ import os
 import ccxt
 from dotenv import load_dotenv
 from pprint import pprint
-from typing import Dict, List, Literal, Union
+from typing import Dict, List, Union
 from src.utils.logging import setup_logging
 from src.models.market_model import MarketModel
+from datetime import datetime
+from enum import Enum, auto
 
-MARKET_TYPE = Literal['spot', 'swap']
+class MarketType(str, Enum):
+    SPOT = 'spot'
+    SWAP = 'swap'
+
+class Timeframe(str, Enum):
+    # Hours
+    HOUR_4 = '4h'
+    HOUR_6 = '6h'
+    HOUR_8 = '8h'
+    HOUR_12 = '12h'
+    
+    # Days
+    DAY_1 = '1d'
 
 class BinanceClient:
     # 定義穩定幣列表
@@ -103,55 +117,36 @@ class BinanceClient:
 
     def __init__(self):
         load_dotenv()
-        self.logger = setup_logging(__name__)
-
-    def _get_auth_config(self) -> Dict:
-        """Return authentication configuration for Binance API
-        
-        Returns:
-            Dict: Authentication configuration
-            
-        Raises:
-            ValueError: If API credentials are not properly configured
-        """
-        api_key = os.getenv('BINANCE_API_KEY')
-        secret_key = os.getenv('BINANCE_SECRET_KEY')
-        
-        if not api_key or not secret_key:
-            raise ValueError(
-                "Missing Binance API credentials. "
-                "Please ensure BINANCE_API_KEY and BINANCE_SECRET_KEY "
-                "are set in your environment variables."
-            )
-            
-        return {
-            'apiKey': api_key,
-            'secret': secret_key,
+        auth_config = {
+            'apiKey': os.getenv('BINANCE_API_KEY'),
+            'secret': os.getenv('BINANCE_SECRET_KEY'),
             'enableRateLimit': True,
         }
+        self.logger = setup_logging(__name__)
+        self.spot_client = ccxt.binance(auth_config)
+        self.swap_client = ccxt.binanceusdm(auth_config)
 
-    def fetch_markets(self, market_types: Union[MARKET_TYPE, List[MARKET_TYPE]] = ['spot', 'swap']) -> List[MarketModel]:
+    def fetch_markets(self, market_types: List[MarketType] = [MarketType.SPOT, MarketType.SWAP]) -> List[MarketModel]:
         """獲取指定市場類型的非穩定幣交易對資訊
         
         Args:
-            market_types: 可以是單個市場類型字符串或市場類型列表
-                - 'spot': 現貨市場
-                - 'swap': 永續合約
+            market_types: 可以是單個市場類型或市場類型列表
+                - MarketType.SPOT: 現貨市場
+                - MarketType.SWAP: 永續合約
         
         Returns:
             List[MarketModel]: 市場資訊列表
         """
-        if isinstance(market_types, str):
+        if isinstance(market_types, MarketType):
             market_types = [market_types]
             
         all_markets = []
         
         for market_type in market_types:
             try:
-                exchange_class = ccxt.binance if market_type == 'spot' else ccxt.binanceusdm
-                client = exchange_class(self._get_auth_config())
-                self.logger.info(f"正在獲取 {market_type} 市場資料...")
-                markets = client.load_markets()
+                exchange_class = self.spot_client if market_type == MarketType.SPOT else self.swap_client
+                self.logger.info(f"正在獲取 {market_type.value} 市場資料...")
+                markets = exchange_class.load_markets()
                 self.logger.info(f"已獲取到 {len(markets)} 個原始市場")
                 
                 for symbol, market in markets.items():
@@ -160,12 +155,12 @@ class BinanceClient:
                         continue
                     
                     # 根據市場類型過濾
-                    if market_type == 'spot':
+                    if market_type == MarketType.SPOT:
                         # 只獲取純現貨市場，排除保證金交易
                         if market.get('margin', False):
                             continue
                     else:  # swap
-                        if not market.get(market_type, True):
+                        if not market.get(market_type.value, True):
                             continue
                     
                     try:
@@ -177,7 +172,59 @@ class BinanceClient:
                         continue
                 
             except Exception as e:
-                self.logger.error(f"獲取 {market_type} 市場時發生錯誤: {str(e)}")
+                self.logger.error(f"獲取 {market_type.value} 市場時發生錯誤: {str(e)}")
                 continue
         self.logger.info(f"過濾後剩下 {len(all_markets)} 個市場")
         return all_markets
+
+    def fetch_ohlcv(
+        self,
+        symbol: str,
+        timeframe: Timeframe = Timeframe.HOUR_4,
+        limit: int = 300,
+        market_type: MarketType = MarketType.SPOT
+    ) -> List[List[float]]:
+        """獲取指定交易對的 OHLCV (Open, High, Low, Close, Volume) 數據
+
+        Args:
+            symbol: 交易對符號，例如 "BTC/USDT"
+            timeframe: 時間間隔，例如 Timeframe.MIN_1, Timeframe.HOUR_1 等
+            limit: 返回的數據點數量，最大值通常為 1000
+            market_type: 市場類型，MarketType.SPOT 或 MarketType.SWAP
+
+        Returns:
+            List[List[float]]: OHLCV 數據列表，每個元素包含 [timestamp, open, high, low, close, volume]
+
+        Raises:
+            ValueError: 如果參數無效
+            Exception: 如果在獲取數據時發生錯誤
+        """
+        try:
+            # 選擇正確的交易所實例
+            exchange_class = self.spot_client if market_type == MarketType.SPOT else self.swap_client
+
+            self.logger.info(f"正在獲取 {symbol} 的 OHLCV 數據，時間間隔：{timeframe.value}")
+            
+            # 獲取 OHLCV 數據
+            ohlcv = exchange_class.fetch_ohlcv(symbol, timeframe.value, limit=limit)
+            
+            self.logger.info(f"成功獲取到 {len(ohlcv)} 筆 OHLCV 數據")
+            return ohlcv
+
+        except ccxt.BadSymbol as e:
+            self.logger.error(f"無效的交易對符號 {symbol}: {str(e)}")
+            raise ValueError(f"無效的交易對符號: {symbol}")
+        
+        except ccxt.BadRequest as e:
+            self.logger.error(f"請求參數無效: {str(e)}")
+            raise ValueError(f"請求參數無效: {str(e)}")
+        
+        except Exception as e:
+            self.logger.error(f"獲取 OHLCV 數據時發生錯誤: {str(e)}")
+            raise
+
+
+if __name__ == "__main__":
+    client = BinanceClient()
+    ohlcv = client.fetch_ohlcv('BTC/USDT', Timeframe.HOUR_4, 3, MarketType.SWAP)
+    print(ohlcv)
