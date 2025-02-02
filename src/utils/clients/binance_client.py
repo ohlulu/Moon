@@ -127,17 +127,6 @@ class BinanceClient:
             'enableRateLimit': True,
         }
 
-    def _filter_market(self, market: Dict) -> bool:
-        """Check if market should be included in results
-        
-        Args:
-            market: Market information dictionary
-            
-        Returns:
-            bool: True if market should be included
-        """
-        return market['base'] not in self.STABLECOINS
-
     def fetch_markets(self, market_types: Union[MARKET_TYPE, List[MARKET_TYPE]] = ['spot', 'swap']) -> Dict[str, List[Dict]]:
         """獲取指定市場類型的非穩定幣交易對資訊
         
@@ -164,7 +153,7 @@ class BinanceClient:
                 
                 filtered_markets = []
                 for symbol, market in markets.items():
-                    if not self._filter_market(market):
+                    if market['base'] in self.STABLECOINS:
                         continue
                         
                     market_without_info = market.copy()
@@ -179,3 +168,8 @@ class BinanceClient:
                 result[market_type] = []
                 
         return result
+
+if __name__ == '__main__':
+    client = BinanceClient()
+    data = client.fetch_markets()
+    print(data['swap'][:10])
