@@ -11,6 +11,7 @@ from src.services.indicators.atr import ATR
 from src.services.indicators.volume_profile import VolumeProfile
 from src.services.indicators.macd import MACD
 from src.services.indicators.bollinger_bands import BollingerBands
+from src.services.leverage_calculator import LeverageCalculator
 
 class Timeframe(str, Enum):
     """Trading timeframe"""
@@ -231,41 +232,68 @@ class SwapAnalyzerV1(MarketAnalyzer):
             BollingerBands(20, 2)
         ]
         super().__init__(indicators)
+        self.leverage_calculator = LeverageCalculator()
     
     def _calculate_timeframe_confidence(self, df: pd.DataFrame) -> float:
         latest = df.iloc[-1]
         confidence = 0.0
         
-        # Check for NA or infinite values
-        if pd.isna(latest['rsi']) or np.isinf(latest['rsi']):
-            return 0.0
-            
+        # Initialize confidence components
+        rsi_confidence = 0.0
+        macd_confidence = 0.0
+        volume_confidence = 0.0
+        bb_confidence = 0.0
+        
         # RSI contribution (20%)
-        rsi = latest['rsi']
-        if 40 <= rsi <= 60:
-            confidence += 0.2
-        elif (30 <= rsi < 40) or (60 < rsi <= 70):
-            confidence += 0.1
+        if not (pd.isna(latest['rsi']) or np.isinf(latest['rsi'])):
+            rsi = latest['rsi']
+            if 40 <= rsi <= 60:
+                rsi_confidence = 0.2
+            elif (30 <= rsi < 40) or (60 < rsi <= 70):
+                rsi_confidence = 0.1
+            elif (20 <= rsi < 30) or (70 < rsi <= 80):
+                rsi_confidence = 0.05
         
         # MACD contribution (20%)
         if not (pd.isna(latest['macd']) or pd.isna(latest['macd_signal']) or 
                np.isinf(latest['macd']) or np.isinf(latest['macd_signal'])):
-            if latest['macd'] > latest['macd_signal']:
-                confidence += 0.2
+            macd_diff = latest['macd'] - latest['macd_signal']
+            if abs(macd_diff) > 0:  # If there's any difference
+                macd_confidence = 0.2 if latest['macd'] > latest['macd_signal'] else 0.1
         
         # Volume Profile contribution (30%)
         if not (pd.isna(latest['poc_price']) or np.isinf(latest['poc_price']) or 
                pd.isna(latest['close']) or np.isinf(latest['close'])):
-            if latest['close'] > latest['poc_price']:
-                confidence += 0.3
+            price_diff = abs(latest['close'] - latest['poc_price'])
+            if price_diff > 0:
+                if latest['close'] > latest['poc_price']:
+                    volume_confidence = 0.3
+                else:
+                    volume_confidence = 0.15
         
         # Bollinger Bands contribution (30%)
         if not (pd.isna(latest['bb_middle']) or np.isinf(latest['bb_middle']) or
-               pd.isna(latest['bb_upper']) or np.isinf(latest['bb_upper'])):
-            if latest['close'] > latest['bb_middle']:
-                if latest['close'] < latest['bb_upper']:
-                    confidence += 0.3
+               pd.isna(latest['bb_upper']) or np.isinf(latest['bb_upper']) or
+               pd.isna(latest['bb_lower']) or np.isinf(latest['bb_lower'])):
+            
+            bb_range = latest['bb_upper'] - latest['bb_lower']
+            if bb_range > 0:  # Ensure bands aren't collapsed
+                if latest['close'] > latest['bb_middle']:
+                    if latest['close'] < latest['bb_upper']:
+                        bb_confidence = 0.3
+                    else:
+                        bb_confidence = 0.15
+                else:
+                    if latest['close'] > latest['bb_lower']:
+                        bb_confidence = 0.15
         
+        # Calculate total confidence
+        confidence = rsi_confidence + macd_confidence + volume_confidence + bb_confidence
+        
+        # Only return 0 if ALL components are 0
+        if confidence < 0.2:  # Minimum threshold for confidence
+            return 0.0
+            
         return confidence
     
     def _calculate_entry_points(self, df_6h: pd.DataFrame, df_1d: pd.DataFrame) -> Dict[str, float]:
@@ -297,7 +325,7 @@ class SwapAnalyzerV1(MarketAnalyzer):
         }
     
     def _calculate_leverage(self, df_6h: pd.DataFrame) -> float:
-        """Calculate suggested leverage based on volatility"""
+        """Calculate suggested leverage based on volatility and trend strength"""
         latest = df_6h.iloc[-1]
         
         # Validate values
@@ -306,14 +334,30 @@ class SwapAnalyzerV1(MarketAnalyzer):
             latest['close'] <= 0):
             return 2.0  # Return conservative leverage if values are invalid
             
-        atr_percent = latest['atr'] / latest['close']
+        # Calculate volatility
+        volatility = latest['atr'] / latest['close']
         
-        if atr_percent < 0.01:  # Low volatility
-            return 5.0
-        elif atr_percent < 0.02:  # Medium volatility
-            return 3.0
-        else:  # High volatility
-            return 2.0
+        # Calculate trend strength based on MACD and RSI
+        trend_strength = 0.5  # Default value
+        if not (pd.isna(latest['macd']) or pd.isna(latest['macd_signal']) or 
+               pd.isna(latest['rsi'])):
+            # MACD trend component (0-0.5)
+            macd_strength = 0.5 if latest['macd'] > latest['macd_signal'] else 0.0
+            
+            # RSI trend component (0-0.5)
+            rsi = latest['rsi']
+            if rsi > 60:
+                rsi_strength = 0.5
+            elif rsi > 50:
+                rsi_strength = 0.25
+            else:
+                rsi_strength = 0.0
+                
+            trend_strength = macd_strength + rsi_strength
+        
+        # Use LeverageCalculator to get suggested leverage
+        leverage_info = self.leverage_calculator.calculate(volatility, trend_strength)
+        return float(leverage_info.suggested_leverage)
     
     def analyze(self, symbol: str, df_6h: pd.DataFrame, df_1d: pd.DataFrame) -> AnalysisResult:
         try:
