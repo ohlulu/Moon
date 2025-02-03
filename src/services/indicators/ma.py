@@ -1,4 +1,5 @@
 import pandas as pd
+import talib
 from src.services.indicators.indicator import Indicator
 
 class MA(Indicator):
@@ -6,15 +7,7 @@ class MA(Indicator):
         self.period = period
         
     def calculate(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Calculate Simple Moving Average
-        
-        Args:
-            df: DataFrame with 'close' column
-            
-        Returns:
-            DataFrame with additional 'ma_{period}' column
-        """
-        df[f'ma_{self.period}'] = df['close'].rolling(window=self.period).mean()
+        df[f'ma_{self.period}'] = talib.SMA(df['close'], timeperiod=self.period)
         return df
     
     def get_name(self) -> str:

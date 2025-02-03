@@ -1,4 +1,5 @@
 import pandas as pd
+import talib
 from src.services.indicators.indicator import Indicator
 
 class EMA(Indicator):
@@ -6,15 +7,7 @@ class EMA(Indicator):
         self.period = period
         
     def calculate(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Calculate Exponential Moving Average
-        
-        Args:
-            df: DataFrame with 'close' column
-            
-        Returns:
-            DataFrame with additional 'ema_{period}' column
-        """
-        df[f'ema_{self.period}'] = df['close'].ewm(span=self.period, adjust=False).mean()
+        df[f'ema_{self.period}'] = talib.EMA(df['close'], timeperiod=self.period)
         return df
     
     def get_name(self) -> str:
