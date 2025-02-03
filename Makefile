@@ -21,7 +21,7 @@ run:
 .PHONY: collect
 collect:
 	@echo "$(BLUE)開始執行資料收集...$(NC)"
-	$(PYTHON) -m $(SRC_DIR).main collect
+	$(PYTHON) -m $(SRC_DIR).services.market_data_collector
 
 .PHONY: analyze-spot
 analyze-spot:
