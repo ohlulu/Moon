@@ -7,7 +7,7 @@ class ATR(Indicator):
         self.period = period
         
     def calculate(self, df: pd.DataFrame) -> pd.DataFrame:
-        df['atr'] = talib.ATR(
+        df.loc[:, 'atr'] = talib.ATR(
             df['high'],
             df['low'],
             df['close'],

@@ -7,7 +7,7 @@ class MA(Indicator):
         self.period = period
         
     def calculate(self, df: pd.DataFrame) -> pd.DataFrame:
-        df[f'ma_{self.period}'] = talib.SMA(df['close'], timeperiod=self.period)
+        df.loc[:, f'ma_{self.period}'] = talib.SMA(df['close'], timeperiod=self.period)
         return df
     
     def get_name(self) -> str:

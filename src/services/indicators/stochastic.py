@@ -18,8 +18,8 @@ class Stochastic(Indicator):
             slowd_period=self.d_period,
             slowd_matype=0
         )
-        df['stoch_k'] = slowk
-        df['stoch_d'] = slowd
+        df.loc[:, 'stoch_k'] = slowk
+        df.loc[:, 'stoch_d'] = slowd
         return df
     
     def get_name(self) -> str:

@@ -15,9 +15,9 @@ class MACD(Indicator):
             slowperiod=self.slow_period,
             signalperiod=self.signal_period
         )
-        df['macd'] = macd
-        df['macd_signal'] = signal
-        df['macd_hist'] = hist
+        df.loc[:, 'macd'] = macd
+        df.loc[:, 'macd_signal'] = signal
+        df.loc[:, 'macd_hist'] = hist
         return df
     
     def get_name(self) -> str:

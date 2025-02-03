@@ -17,19 +17,19 @@ class BollingerBands(Indicator):
             matype=talib.MA_Type.SMA
         )
         
-        df['bb_upper'] = upper
-        df['bb_middle'] = middle
-        df['bb_lower'] = lower
+        df.loc[:, 'bb_upper'] = upper
+        df.loc[:, 'bb_middle'] = middle
+        df.loc[:, 'bb_lower'] = lower
         
         # Calculate bandwidth
         bb_diff = df['bb_upper'] - df['bb_lower']
         middle_band = df['bb_middle'].replace(0, np.nan)
-        df['bb_bandwidth'] = bb_diff / middle_band
+        df.loc[:, 'bb_bandwidth'] = bb_diff / middle_band
         
         # Calculate %B
         price_from_lower = df['close'] - df['bb_lower']
         band_range = bb_diff.replace(0, np.nan)
-        df['bb_percent_b'] = price_from_lower / band_range
+        df.loc[:, 'bb_percent_b'] = price_from_lower / band_range
         
         # Handle edge cases for %B
         df.loc[band_range.isna(), 'bb_percent_b'] = 0.5

@@ -4,10 +4,10 @@ from src.services.indicators.indicator import Indicator
 
 class OBV(Indicator):
     def calculate(self, df: pd.DataFrame) -> pd.DataFrame:
-        df['obv'] = talib.OBV(df['close'], df['volume'])
+        df.loc[:, 'obv'] = talib.OBV(df['close'], df['volume'])
         
         # Add OBV EMA for signal line (optional but useful)
-        df['obv_ema'] = talib.EMA(df['obv'], timeperiod=20)
+        df.loc[:, 'obv_ema'] = talib.EMA(df['obv'], timeperiod=20)
         
         return df
     

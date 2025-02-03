@@ -7,7 +7,7 @@ class EMA(Indicator):
         self.period = period
         
     def calculate(self, df: pd.DataFrame) -> pd.DataFrame:
-        df[f'ema_{self.period}'] = talib.EMA(df['close'], timeperiod=self.period)
+        df.loc[:, f'ema_{self.period}'] = talib.EMA(df['close'], timeperiod=self.period)
         return df
     
     def get_name(self) -> str:

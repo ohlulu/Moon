@@ -7,7 +7,7 @@ class RSI(Indicator):
         self.period = period
         
     def calculate(self, df: pd.DataFrame) -> pd.DataFrame:
-        df['rsi'] = talib.RSI(df['close'], timeperiod=self.period)
+        df.loc[:, 'rsi'] = talib.RSI(df['close'], timeperiod=self.period)
         return df
     
     def get_name(self) -> str:

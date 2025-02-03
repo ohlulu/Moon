@@ -48,7 +48,7 @@ class MarketAnalyzer(ABC):
             df = indicator.calculate(df)
             
         # 移除初始化期間的數據點（前 30 個），這些數據點可能包含 NA 值
-        df = df.iloc[30:]
+        df = df.iloc[60:]
         
         # 確保沒有 NA 值
         if df.isnull().values.any():
