@@ -1,6 +1,7 @@
 import pandas as pd
 from tqdm import tqdm
 from typing import List
+from datetime import datetime
 from src.utils.db.file_store import FileStore
 from src.utils.helpers import filter_by_market_cap_rank
 from src.utils.clients.binance_client import BinanceClient, Timeframe as BinanceTimeframe
@@ -99,16 +100,29 @@ def analyze_swap() -> List[AnalysisResult]:
 
 if __name__ == "__main__":
     results = analyze_swap()
-    print("\n=== 合約市場分析完成 ===")
-    print(f"共分析出 {len(results)} 個交易機會\n")
-    for result in results:
-        print(f"\n分析結果 - {result.symbol} 永續合約:")
-        print(f"交易類型: {result.signal_type}")
-        print(f"信心度: {result.confidence:.2f}")
-        print(f"預期報酬: {result.expected_return:.2f}")
-        print(f"進場價: {result.entry_price:.2f}")
-        print(f"止損價: {result.stop_loss:.2f}")
-        print(f"目標價: {result.take_profit:.2f}")
-        print(f"槓桿倍數: {result.leverage if result.leverage else '無'}")
-        print(f"詳細說明: {result.description if result.description else '無'}")
-        print("-" * 50)
+    
+    # 將結果轉換為 DataFrame
+    df = pd.DataFrame([
+        {
+            'datetime': datetime.now().strftime("%Y-%m-%d %H:%M"),
+            'symbol': r.symbol.split(':')[0],
+            'signal_type': round(r.signal_type, 2),
+            'confidence': round(r.confidence, 2),
+            'entry_price': r.entry_price,
+            'stop_loss': r.stop_loss,
+            'take_profit': r.take_profit,
+            'leverage': r.leverage if r.leverage else '',
+        }
+        for r in results
+    ])
+    
+    # 設定欄位順序
+    columns = [
+        'datetime', 'symbol', 'signal_type', 'confidence', 
+        'expected_return', 'entry_price', 'stop_loss', 
+        'take_profit', 'leverage', 'description'
+    ]
+    df = df[columns]
+    
+    # 輸出 CSV 格式
+    print(df.to_csv(index=False))

@@ -22,7 +22,7 @@ class Timeframe(str, Enum):
 class AnalysisResult:
     """Analysis result for both spot and swap"""
     symbol: str
-    signal_type: str  # 'spot' or 'swap_buy' or 'swap_sell'
+    signal_type: float  # -1 to 1
     confidence: float  # 0-1
     entry_price: float
     stop_loss: float
@@ -212,7 +212,7 @@ class SpotAnalyzerV1(MarketAnalyzer):
         
         return AnalysisResult(
             symbol=symbol,
-            signal_type='spot',
+            signal_type=confidence,
             confidence=confidence,
             entry_price=points['entry'],
             stop_loss=points['stop_loss'],
@@ -297,31 +297,93 @@ class SwapAnalyzerV1(MarketAnalyzer):
         return confidence
     
     def _calculate_entry_points(self, df_6h: pd.DataFrame, df_1d: pd.DataFrame) -> Dict[str, float]:
+        """
+        Dynamic entry point calculation for crypto markets
+        Considers multiple indicators and market dynamics
+        """
         latest_6h = df_6h.iloc[-1]
+        latest_1d = df_1d.iloc[-1]
         
-        # Validate ATR and close values
-        if (pd.isna(latest_6h['atr']) or np.isinf(latest_6h['atr']) or
-            pd.isna(latest_6h['close']) or np.isinf(latest_6h['close'])):
-            raise ValueError("Invalid ATR or close price values")
-            
-        atr = latest_6h['atr']
+        # 1. 波動性分析 (使用 ATR)
+        if (pd.isna(latest_6h['atr']) or np.isinf(latest_6h['atr']) or 
+            pd.isna(latest_1d['atr']) or np.isinf(latest_1d['atr'])):
+            raise ValueError("Invalid ATR values")
+        
+        # 結合 6h 和 1d 的 ATR，但加入更複雜的權重計算
+        volatility_factor = (
+            latest_6h['atr'] * 0.4 + 
+            latest_1d['atr'] * 0.6
+        )
+        
+        # 2. 趨勢強度分析 (結合 MACD 和 RSI)
+        if (pd.isna(latest_6h['macd']) or pd.isna(latest_6h['macd_signal']) or 
+            pd.isna(latest_6h['rsi'])):
+            raise ValueError("Missing MACD or RSI indicators")
+        
+        # MACD 趨勢強度
+        macd_trend_strength = (
+            1 if latest_6h['macd'] > latest_6h['macd_signal'] else -1
+        )
+        
+        # RSI 趨勢方向
+        rsi_trend_direction = (
+            1 if latest_6h['rsi'] > 50 else -1
+        )
+        
+        # 3. 成交量分析 (使用成交量分佈指標)
+        if pd.isna(latest_6h['poc_price']):
+            raise ValueError("Missing Volume Profile indicator")
+        
+        # 計算與成交量集中點的關係
+        volume_alignment = (
+            1 if latest_6h['close'] > latest_6h['poc_price'] else -1
+        )
+        
+        # 4. 布林帶分析
+        if (pd.isna(latest_6h['bb_middle']) or pd.isna(latest_6h['bb_upper']) or 
+            pd.isna(latest_6h['bb_lower'])):
+            raise ValueError("Missing Bollinger Bands indicators")
+        
+        # 布林帶位置
+        bb_band_width = latest_6h['bb_upper'] - latest_6h['bb_lower']
+        if abs(bb_band_width) < 1e-8:  # 防止除零
+            bb_position = 0
+        else:
+            bb_position = (latest_6h['close'] - latest_6h['bb_middle']) / bb_band_width
+        
+        # 5. 動態入場點計算
         entry = latest_6h['close']
         
-        # Ensure values are reasonable
-        if atr <= 0 or entry <= 0:
-            raise ValueError("ATR or entry price must be positive")
-            
-        stop_loss = entry - (atr * 1.5)
-        take_profit = entry + (atr * 2.5)
+        # 根據多個指標動態調整入場點
+        entry_adjustment = (
+            volatility_factor * 
+            macd_trend_strength * 
+            rsi_trend_direction * 
+            volume_alignment * 
+            (1 + bb_position)  # 布林帶位置影響
+        )
         
-        # Validate calculated values
+        # 加入趨勢一致性檢查
+        trend_consistency = macd_trend_strength * rsi_trend_direction
+        if trend_consistency < 0:  # 指標方向矛盾時降低調整幅度
+            entry_adjustment *= 0.5
+        
+        # 在計算 entry_adjustment 時加入波動率調整
+        volatility_adjusted_factor = 1 / (1 + volatility_factor**2)  # 抑制高波動時過度調整
+        entry_adjustment *= volatility_adjusted_factor
+        
+        # 計算止損和止盈
+        stop_loss = entry - abs(entry_adjustment * 1.5)
+        take_profit = entry + abs(entry_adjustment * 2.5)
+        
+        # 確保止損和止盈在合理範圍
         if stop_loss <= 0 or take_profit <= 0:
             raise ValueError("Invalid stop loss or take profit values")
-            
+        
         return {
             'entry': entry,
             'stop_loss': stop_loss,
-            'take_profit': take_profit
+            'take_profit': take_profit,
         }
     
     def _calculate_leverage(self, df_6h: pd.DataFrame) -> float:
@@ -359,6 +421,56 @@ class SwapAnalyzerV1(MarketAnalyzer):
         leverage_info = self.leverage_calculator.calculate(volatility, trend_strength)
         return float(leverage_info.suggested_leverage)
     
+    def _calculate_signal_type(self, df_6h: pd.DataFrame, df_1d: pd.DataFrame) -> float:
+        latest_6h = df_6h.iloc[-1]
+        latest_1d = df_1d.iloc[-1]
+
+        # 改用連續數值計算
+        signal_score = 0.0
+        
+        # 1. 多時間框架趨勢 (權重 30%)
+        daily_trend = 1 if latest_1d['close'] > latest_1d['bb_middle'] else -1
+        hourly_trend = 1 if latest_6h['close'] > latest_6h['bb_middle'] else -1
+        signal_score += (daily_trend * 0.15) + (hourly_trend * 0.15)
+
+        # 2. 波動率過濾 (權重 20%)
+        bb_band_width = latest_6h['bb_upper'] - latest_6h['bb_lower']
+        avg_band_width = df_6h['bb_upper'].iloc[-20:].mean() - df_6h['bb_lower'].iloc[-20:].mean()
+        volatility_ratio = bb_band_width / (avg_band_width + 1e-8)  # 防止除零
+        signal_score += np.clip(volatility_ratio - 0.5, -0.2, 0.2)  # 波動率貢獻在 ±0.2 之間
+
+        # 3. 成交量驗證 (權重 15%)
+        volume_ratio = latest_1d['volume'] / (df_1d['volume'].rolling(14).mean().iloc[-1] + 1e-8)
+        volume_factor = np.clip((volume_ratio - 1) * 0.15, -0.15, 0.15)  # 成交量貢獻在 ±0.15 之間
+        signal_score += volume_factor
+
+        # 4. 市場結構分析 (權重 25%)
+        swing_highs = df_6h['high'].rolling(5, center=True).max().dropna()
+        swing_lows = df_6h['low'].rolling(5, center=True).min().dropna()
+        recent_high = swing_highs.iloc[-3:].max()
+        recent_low = swing_lows.iloc[-3:].min()
+        
+        bullish_break = (latest_6h['close'] - recent_high) / recent_high  # 突破幅度
+        bearish_break = (recent_low - latest_6h['close']) / recent_low
+        structure_score = np.clip(bullish_break * 0.25, -0.25, 0.25) if bullish_break > 0 else np.clip(-bearish_break * 0.25, -0.25, 0.25)
+        signal_score += structure_score
+
+        # 5. 趨勢強度過濾 (權重 10%)
+        macd_diff = latest_6h['macd'] - latest_6h['macd_signal']
+        rsi_diff = (latest_6h['rsi'] - 50) / 50  # 正規化到 -1~1
+        trend_strength = (macd_diff * 0.05) + (rsi_diff * 0.05)  # 總權重 10%
+        signal_score += trend_strength
+
+        # 最終數值處理
+        final_score = np.tanh(signal_score * 2)  # 用 tanh 壓縮到 -1~1 範圍
+        final_score = np.clip(final_score, -1.0, 1.0)
+
+        # 新增異常值檢查
+        if pd.isnull([latest_6h['bb_middle'], latest_1d['bb_middle']]).any():
+            raise ValueError("Bollinger Bands values contain NA")
+
+        return final_score
+    
     def analyze(self, symbol: str, df_6h: pd.DataFrame, df_1d: pd.DataFrame) -> AnalysisResult:
         try:
             # Calculate indicators
@@ -387,15 +499,14 @@ class SwapAnalyzerV1(MarketAnalyzer):
             if abs(denominator) < 0.00001:
                 raise ValueError("Entry and stop loss prices are too close")
                 
-            expected_return = ((points['take_profit'] - points['entry']) / denominator) * leverage
+            expected_return = ((points['take_profit'] - points['entry']) / points['entry']) * leverage
             
             # Validate expected return
             if pd.isna(expected_return) or np.isinf(expected_return):
                 raise ValueError("Invalid expected return value")
                 
             # Determine signal type based on position
-            latest_6h = df_6h.iloc[-1]
-            signal_type = 'swap_buy' if latest_6h['close'] > latest_6h['bb_middle'] else 'swap_sell'
+            signal_type = self._calculate_signal_type(df_6h, df_1d)
             
             return AnalysisResult(
                 symbol=symbol,
