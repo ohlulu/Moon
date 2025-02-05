@@ -33,6 +33,11 @@ analyze-swap:
 	@echo "$(BLUE)開始分析合約市場...$(NC)"
 	$(PYTHON) -m $(SRC_DIR).analyze_swap
 
+.PHONY: analyze-grid
+analyze-grid:
+	@echo "$(BLUE)開始分析網格市場...$(NC)"
+	$(PYTHON) -m $(SRC_DIR).analyze_grid
+
 # ====== 安裝依賴 ====== #
 .PHONY: install
 install:
