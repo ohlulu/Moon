@@ -119,10 +119,15 @@ if __name__ == "__main__":
     # 設定欄位順序
     columns = [
         'datetime', 'symbol', 'signal_type', 'confidence', 
-        'expected_return', 'entry_price', 'stop_loss', 
-        'take_profit', 'leverage', 'description'
+        'entry_price', 'stop_loss', 'take_profit', 'leverage'
     ]
     df = df[columns]
     
     # 輸出 CSV 格式
     print(df.to_csv(index=False))
+    print("="*100)
+    print(df.to_excel(index=False))
+    print("="*100)
+    print(df.to_markdown(index=False))
+    print("="*100)
+    print(df.to_html(index=False))
