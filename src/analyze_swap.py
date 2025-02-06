@@ -125,9 +125,3 @@ if __name__ == "__main__":
     
     # 輸出 CSV 格式
     print(df.to_csv(index=False))
-    print("="*100)
-    print(df.to_excel(index=False))
-    print("="*100)
-    print(df.to_markdown(index=False))
-    print("="*100)
-    print(df.to_html(index=False))
