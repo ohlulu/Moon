@@ -31,7 +31,12 @@ analyze-spot:
 .PHONY: analyze-swap
 analyze-swap:
 	@echo "$(BLUE)開始分析合約市場...$(NC)"
-	$(PYTHON) -m $(SRC_DIR).analyze_swap
+	$(PYTHON) -m $(SRC_DIR).analyze_swap\
+
+.PHONY: analyze-swap-v2
+analyze-swap-v2:
+	@echo "$(BLUE)開始分析合約市場...$(NC)"
+	$(PYTHON) -m $(SRC_DIR).analyze_swap_v2
 
 .PHONY: analyze-grid
 analyze-grid:
