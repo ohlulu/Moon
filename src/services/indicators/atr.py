@@ -14,6 +14,7 @@ class ATR(Indicator):
             df['close'],
             timeperiod=self.period
         )
+        df.loc[:, 'atr_pct'] = df['atr'] / df['close'] * 100
         return df
     
     def get_name(self) -> str:
