@@ -92,7 +92,7 @@ def analyze_swap() -> List[AnalysisResult]:
     # 5. 根據信心度排序並返回前 10 個結果
     sorted_results = sorted(
         results,
-        key=lambda x: x.confidence * x.expected_return,
+        key=lambda x: x.confidence,
         reverse=True
     )
     

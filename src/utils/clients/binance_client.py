@@ -26,6 +26,7 @@ class BinanceClient:
     # 定義穩定幣列表
     STABLECOINS = {
         # USD Stablecoins - Major
+        'USD',
         'USDT',     # Tether
         'USDC',     # USD Coin
         'BUSD',     # Binance USD
@@ -151,7 +152,9 @@ class BinanceClient:
                 
                 for symbol, market in markets.items():
                     # 跳過穩定幣交易對
-                    if market['base'] in self.STABLECOINS or not market['quote'] in 'USDT':
+                    if market['base'] in self.STABLECOINS:
+                        continue
+                    if market['quote'] not in ['USDT']:  
                         continue
                     
                     # 根據市場類型過濾

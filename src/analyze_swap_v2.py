@@ -73,6 +73,7 @@ def analyze_swap() -> List:
                     raise ValueError(f"數據點不足 ({len(df)} < 100)")
                 
         except Exception as e:
+            print(f"分析 {market.symbol} 時發生錯誤: {str(e)}")
             continue
             
         # 如果通過所有檢查，才進行分析
@@ -83,8 +84,7 @@ def analyze_swap() -> List:
             
             results.append({
                 'symbol': market.symbol,
-                'result_6h': result_6h,
-                'result_1d': result_1d
+                'result': result_6h.iloc[-1],
             })
             
         except Exception as e:
@@ -94,7 +94,7 @@ def analyze_swap() -> List:
     # 5. 根據信心度排序並返回前 10 個結果
     sorted_results = sorted(
         results,
-        key=lambda x: x['result_6h']['confidence'] / 2 + x['result_1d']['confidence'] / 2,
+        key=lambda x: x['result']['confidence'],
         reverse=True
     )
     
@@ -104,7 +104,13 @@ if __name__ == "__main__":
     results = analyze_swap()
     
     # 將結果轉換為 DataFrame
-    df = pd.DataFrame(results)
+    df = pd.DataFrame({
+        'symbol': [r['symbol'] for r in results],
+        'signal': [r['result']['signal'] for r in results],
+        'confidence': [r['result']['confidence'] for r in results],
+        'suggested_leverage': [r['result']['suggested_leverage'] for r in results],
+        'stop_loss_pct': [r['result']['stop_loss_pct'] for r in results],
+    })
     
     # 輸出 CSV 格式
     print(df.to_csv(index=False))
