@@ -4806,7 +4806,7 @@
     "margin": false,
     "swap": false,
     "future": false,
-    "active": true,
+    "active": false,
     "contract": false,
     "linear": null,
     "inverse": null,
@@ -24019,6 +24019,226 @@
     "taker": "0.0005",
     "maker": "0.0002",
     "baseId": "BERA",
+    "quoteId": "USDT",
+    "settleId": "USDT",
+    "exchange": "binance"
+  },
+  {
+    "id": "TSTUSDT",
+    "symbol": "TST/USDT:USDT",
+    "base": "TST",
+    "quote": "USDT",
+    "settle": "USDT",
+    "type": "swap",
+    "spot": false,
+    "margin": false,
+    "swap": true,
+    "future": false,
+    "active": true,
+    "contract": true,
+    "linear": true,
+    "inverse": false,
+    "contractSize": "1.0",
+    "expiry": null,
+    "precision": {
+      "amount": "1.0",
+      "price": "0.0001",
+      "cost": null
+    },
+    "limits": {
+      "amount": {
+        "min": "1.0",
+        "max": "2000000.0"
+      },
+      "price": {
+        "min": "0.0001",
+        "max": "200.0"
+      },
+      "cost": {
+        "min": "5.0",
+        "max": null
+      }
+    },
+    "percentage": true,
+    "taker": "0.0005",
+    "maker": "0.0002",
+    "baseId": "TST",
+    "quoteId": "USDT",
+    "settleId": "USDT",
+    "exchange": "binance"
+  },
+  {
+    "id": "LAYERUSDT",
+    "symbol": "LAYER/USDT:USDT",
+    "base": "LAYER",
+    "quote": "USDT",
+    "settle": "USDT",
+    "type": "swap",
+    "spot": false,
+    "margin": false,
+    "swap": true,
+    "future": false,
+    "active": true,
+    "contract": true,
+    "linear": true,
+    "inverse": false,
+    "contractSize": "1.0",
+    "expiry": null,
+    "precision": {
+      "amount": "0.1",
+      "price": "0.0001",
+      "cost": null
+    },
+    "limits": {
+      "amount": {
+        "min": "0.1",
+        "max": "800000.0"
+      },
+      "price": {
+        "min": "0.0001",
+        "max": "200.0"
+      },
+      "cost": {
+        "min": "5.0",
+        "max": null
+      }
+    },
+    "percentage": true,
+    "taker": "0.0005",
+    "maker": "0.0002",
+    "baseId": "LAYER",
+    "quoteId": "USDT",
+    "settleId": "USDT",
+    "exchange": "binance"
+  },
+  {
+    "id": "HEIUSDT",
+    "symbol": "HEI/USDT:USDT",
+    "base": "HEI",
+    "quote": "USDT",
+    "settle": "USDT",
+    "type": "swap",
+    "spot": false,
+    "margin": false,
+    "swap": true,
+    "future": false,
+    "active": true,
+    "contract": true,
+    "linear": true,
+    "inverse": false,
+    "contractSize": "1.0",
+    "expiry": null,
+    "precision": {
+      "amount": "0.1",
+      "price": "0.0001",
+      "cost": null
+    },
+    "limits": {
+      "amount": {
+        "min": "0.1",
+        "max": "1000000.0"
+      },
+      "price": {
+        "min": "0.0001",
+        "max": "200.0"
+      },
+      "cost": {
+        "min": "5.0",
+        "max": null
+      }
+    },
+    "percentage": true,
+    "taker": "0.0005",
+    "maker": "0.0002",
+    "baseId": "HEI",
+    "quoteId": "USDT",
+    "settleId": "USDT",
+    "exchange": "binance"
+  },
+  {
+    "id": "B3USDT",
+    "symbol": "B3/USDT:USDT",
+    "base": "B3",
+    "quote": "USDT",
+    "settle": "USDT",
+    "type": "swap",
+    "spot": false,
+    "margin": false,
+    "swap": true,
+    "future": false,
+    "active": true,
+    "contract": true,
+    "linear": true,
+    "inverse": false,
+    "contractSize": "1.0",
+    "expiry": null,
+    "precision": {
+      "amount": "1.0",
+      "price": "0.00001",
+      "cost": null
+    },
+    "limits": {
+      "amount": {
+        "min": "1.0",
+        "max": "8000000.0"
+      },
+      "price": {
+        "min": "0.00001",
+        "max": "200.0"
+      },
+      "cost": {
+        "min": "5.0",
+        "max": null
+      }
+    },
+    "percentage": true,
+    "taker": "0.0005",
+    "maker": "0.0002",
+    "baseId": "B3",
+    "quoteId": "USDT",
+    "settleId": "USDT",
+    "exchange": "binance"
+  },
+  {
+    "id": "IPUSDT",
+    "symbol": "IP/USDT:USDT",
+    "base": "IP",
+    "quote": "USDT",
+    "settle": "USDT",
+    "type": "swap",
+    "spot": false,
+    "margin": false,
+    "swap": true,
+    "future": false,
+    "active": true,
+    "contract": true,
+    "linear": true,
+    "inverse": false,
+    "contractSize": "1.0",
+    "expiry": null,
+    "precision": {
+      "amount": "0.1",
+      "price": "0.00001",
+      "cost": null
+    },
+    "limits": {
+      "amount": {
+        "min": "0.1",
+        "max": "500000.0"
+      },
+      "price": {
+        "min": "0.00001",
+        "max": "200.0"
+      },
+      "cost": {
+        "min": "5.0",
+        "max": null
+      }
+    },
+    "percentage": true,
+    "taker": "0.0005",
+    "maker": "0.0002",
+    "baseId": "IP",
     "quoteId": "USDT",
     "settleId": "USDT",
     "exchange": "binance"
