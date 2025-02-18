@@ -98,7 +98,7 @@ def analyze_swap() -> List:
         reverse=True
     )
     
-    return sorted_results[:10]
+    return sorted_results[:30]
 
 if __name__ == "__main__":
     results = analyze_swap()

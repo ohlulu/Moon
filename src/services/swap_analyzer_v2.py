@@ -168,26 +168,88 @@ class SwapAnalyzerV2:
 
     def calculate_trading_advice(self, df: pd.DataFrame, index: int, signals, volatility, volume_ratio, atr_pct):
         """計算綜合建議"""
-        # 計算綜合分數
-        total_score = (
-            signals['trend'] * 2 +  # 趨勢權重加倍
-            signals['momentum'] +
-            signals['volatility']['score'] +
-            signals['volume']
+        # 計算各個指標的權重分數 (0-1)
+        
+        # 1. 趨勢得分 (0-1)
+        trend_score = abs(signals['trend']) / 2  # 原始範圍 -2 到 2
+        
+        # 2. 動能得分 (0-1)
+        momentum_score = (abs(signals['momentum']) / 2)  # 原始範圍 -2 到 2
+        
+        # 3. 波動性得分 (0-1)
+        volatility_score = signals['volatility']['score'] / 2  # 原始範圍 0 到 2
+        
+        # 4. 成交量得分 (0-1)
+        volume_score = (abs(signals['volume']) / 2)  # 原始範圍 -2 到 2
+        
+        # 5. 布林帶位置得分 (0-1)
+        current_price = df['close'].iloc[index]
+        bb_upper = df['bb_upper'].iloc[index]
+        bb_lower = df['bb_lower'].iloc[index]
+        bb_position = (current_price - bb_lower) / (bb_upper - bb_lower)
+        bb_score = 1 - abs(0.5 - bb_position)  # 越接近中軌分數越高
+        
+        # 6. 計算 RSI 的極值程度 (0-1)
+        rsi = df['rsi'].iloc[index]
+        rsi_score = 0
+        if rsi <= 30:
+            rsi_score = (30 - rsi) / 30
+        elif rsi >= 70:
+            rsi_score = (rsi - 70) / 30
+            
+        # 7. 計算 MACD 的背離程度 (0-1)
+        macd_diff = abs(df['macd'].iloc[index] - df['macd_signal'].iloc[index])
+        macd_score = min(macd_diff / df['close'].iloc[index] * 100, 1)
+        
+        # 權重配置
+        weights = {
+            'trend': 0.25,
+            'momentum': 0.20,
+            'volatility': 0.15,
+            'volume': 0.15,
+            'bb': 0.10,
+            'rsi': 0.10,
+            'macd': 0.05
+        }
+        
+        # 計算加權平均分數
+        weighted_score = (
+            trend_score * weights['trend'] +
+            momentum_score * weights['momentum'] +
+            volatility_score * weights['volatility'] +
+            volume_score * weights['volume'] +
+            bb_score * weights['bb'] +
+            rsi_score * weights['rsi'] +
+            macd_score * weights['macd']
         )
         
-        # 根據波動性調整建議槓桿
-        base_leverage = self.calculate_base_leverage(volatility)
+        # 市場條件懲罰因子 (0.5-1)
+        market_penalty = 1.0
+        if volatility > 0.8:  # 高波動懲罰
+            market_penalty *= 0.8
+        if volume_ratio < 0.8:  # 低成交量懲罰
+            market_penalty *= 0.9
+        if atr_pct > 5:  # 高 ATR 懲罰
+            market_penalty *= 0.8
+            
+        # 最終信心分數 (0-1)
+        final_confidence = weighted_score * market_penalty
         
-        # 設置倉位和信號
-        if total_score >= 4:  # 強烈做多信號
-            df.loc[df.index[index], 'signal'] = 1
-            df.loc[df.index[index], 'confidence'] = min(5, abs(total_score))
-            df.loc[df.index[index], 'suggested_leverage'] = base_leverage
-        elif total_score <= -4:  # 強烈做空信號
-            df.loc[df.index[index], 'signal'] = -1
-            df.loc[df.index[index], 'confidence'] = min(5, abs(total_score))
-            df.loc[df.index[index], 'suggested_leverage'] = base_leverage
+        # 設置信號和建議
+        signal_threshold = 0.6  # 需要較高的信心度才發出信號
+        if weighted_score >= signal_threshold:
+            if signals['trend'] > 0:  # 做多信號
+                df.loc[df.index[index], 'signal'] = 1
+            else:  # 做空信號
+                df.loc[df.index[index], 'signal'] = -1
+        else:
+            df.loc[df.index[index], 'signal'] = 0
+            
+        df.loc[df.index[index], 'confidence'] = final_confidence
+        
+        # 根據信心度調整槓桿
+        base_leverage = self.calculate_base_leverage(volatility)
+        df.loc[df.index[index], 'suggested_leverage'] = base_leverage * final_confidence
         
         # 設置動態止損
         df.loc[df.index[index], 'stop_loss_pct'] = self.calculate_stop_loss(atr_pct)
